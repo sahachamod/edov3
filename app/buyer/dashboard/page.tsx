@@ -90,7 +90,7 @@ export default function BuyerDashboard() {
         const token = localStorage.getItem('authToken');
         if (!token) return router.push('/login');
 
-        const res = await fetch('http://51.75.119.133:8080/api/Sales/approved', {
+        const res = await fetch('http://51.75.119.133:5243/api/Sales/approved', {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
 
@@ -136,7 +136,7 @@ export default function BuyerDashboard() {
       }
       return { text: sale.approvalStatusString, class: 'bg-gray-500/20 text-gray-300' };
     }
-    
+
     // Fallback to delivered field if approvalStatusString is not available
     return {
       text: sale.delivered ? 'Delivered' : 'Pending',

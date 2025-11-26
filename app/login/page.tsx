@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, FormEvent } from 'react';
@@ -28,7 +27,7 @@ export default function LoginPage() {
     try {
       // ---- 1. Try BUYER login first ----
       let userType: 'buyer' | 'admin' = 'buyer';
-      let response = await fetch('http://51.75.119.133:8080/api/Auth/buyer-login', {
+      let response = await fetch('http://51.75.119.133:5243/api/Auth/buyer-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -40,7 +39,7 @@ export default function LoginPage() {
       // ---- 2. If buyer fails → try ADMIN login ----
       if (!response.ok) {
         userType = 'admin';
-        response = await fetch('http://51.75.119.133:8080/api/Auth/login', {
+        response = await fetch('http://51.75.119.133:5243/api/Auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),

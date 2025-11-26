@@ -26,7 +26,8 @@ import {
   Settings,
   HelpCircle,
   Calendar,
-  DollarSign
+  DollarSign,
+  Eye
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -744,6 +745,10 @@ export default function AdminDashboard() {
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [saleSearchTerm, setSaleSearchTerm] = useState('');
   const [pendingPaymentSearchTerm, setPendingPaymentSearchTerm] = useState('');
+  const [showPaymentSlipModal, setShowPaymentSlipModal] = useState(false);
+  const [paymentSlipUrl, setPaymentSlipUrl] = useState('');
+  const [paymentSlipLoading, setPaymentSlipLoading] = useState(false);
+  const [paymentSlipError, setPaymentSlipError] = useState(false);
   const [isCreateBuyerOpen, setIsCreateBuyerOpen] = useState(false);
   const [isEditBuyerOpen, setIsEditBuyerOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -835,7 +840,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setBuyersLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:8080/api/Buyer', {
+      const res = await fetch('http://51.75.119.133:5243/api/Buyer', {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const txt = await res.text();
@@ -858,7 +863,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setUsersLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:8080/api/v1/User', {
+      const res = await fetch('http://51.75.119.133:5243/api/v1/User', {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Accept': 'application/json'
@@ -893,7 +898,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setSalesLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:8080/api/Sales', {
+      const res = await fetch('http://51.75.119.133:5243/api/Sales', {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const txt = await res.text();
@@ -938,7 +943,7 @@ export default function AdminDashboard() {
     setPendingSalesLoading(true);
     try {
       console.log('Fetching pending sales with token:', authToken.substring(0, 10) + '...');
-      const res = await fetch('http://51.75.119.133:8080/api/Sales/pending', {
+      const res = await fetch('http://51.75.119.133:5243/api/Sales/pending', {
         headers: {
           'Authorization': `Bearer ${authToken.trim()}`,
           'Accept': 'application/json',
@@ -988,7 +993,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setPendingPaymentsLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:8080/api/Payment/admin/all?status=0', {
+      const res = await fetch('http://51.75.119.133:5243/api/Payment/admin/all?status=0', {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Accept': 'application/json'
@@ -1042,7 +1047,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setProcessingPaymentId(0); // Using 0 as a general loading indicator
     try {
-      const res = await fetch(`http://51.75.119.133:8080/api/Payment/sales-txn/${salesId}`, {
+      const res = await fetch(`http://51.75.119.133:5243/api/Payment/sales-txn/${salesId}`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Accept': 'application/json'
@@ -1091,7 +1096,7 @@ export default function AdminDashboard() {
     if (!selectedPendingPayment || !authToken) return;
     setProcessingPaymentId(selectedPendingPayment.id);
     try {
-      const response = await fetch('http://51.75.119.133:8080/api/Payment/approve', {
+      const response = await fetch('http://51.75.119.133:5243/api/Payment/approve', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1128,8 +1133,8 @@ export default function AdminDashboard() {
       } catch (parseError) {
         console.error('Failed to parse JSON response:', parseError);
         // Create a minimal valid response object
-        result = { 
-          success: true, 
+        result = {
+          success: true,
           message: 'Payment approved successfully',
           data: '',
           errors: [],
@@ -1157,6 +1162,70 @@ export default function AdminDashboard() {
     } finally {
       setProcessingPaymentId(null);
     }
+  };
+
+  const handleViewPaymentSlip = async (paymentId: number) => {
+    if (!authToken) {
+      showToast('Authentication required', 'error');
+      return;
+    }
+
+    setPaymentSlipLoading(true);
+    setPaymentSlipError(false);
+
+    try {
+      // Create a blob URL with authentication
+      const slipUrl = `http://51.75.119.133:5243/api/Payment/${paymentId}/slip`;
+
+      // Fetch the image with authentication
+      const response = await fetch(slipUrl, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch payment slip: ${response.status} ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        throw new Error('Payment slip image is empty');
+      }
+
+      // Create a blob URL for the image
+      const blobUrl = URL.createObjectURL(blob);
+      setPaymentSlipUrl(blobUrl);
+      setShowPaymentSlipModal(true);
+
+    } catch (error) {
+      console.error('Error loading payment slip:', error);
+      setPaymentSlipLoading(false);
+      setPaymentSlipError(true);
+      showToast('Failed to load payment slip. Please try again.', 'error');
+    }
+  };
+
+  // Clean up blob URLs when component unmounts or modal closes
+  useEffect(() => {
+    return () => {
+      if (paymentSlipUrl && paymentSlipUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(paymentSlipUrl);
+      }
+    };
+  }, [paymentSlipUrl]);
+
+  const handleClosePaymentSlipModal = () => {
+    setShowPaymentSlipModal(false);
+    setPaymentSlipLoading(false);
+    setPaymentSlipError(false);
+
+    // Clean up blob URL
+    if (paymentSlipUrl && paymentSlipUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(paymentSlipUrl);
+    }
+    setPaymentSlipUrl('');
   };
 
   useEffect(() => {
@@ -1187,7 +1256,7 @@ export default function AdminDashboard() {
     }
     setCreateBuyerLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:8080/api/Buyer', {
+      const res = await fetch('http://51.75.119.133:5243/api/Buyer', {
         method: 'POST',
         headers: {
           accept: 'text/plain',
@@ -1220,7 +1289,7 @@ export default function AdminDashboard() {
     if (!selectedBuyer) return;
     setEditBuyerLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:8080/api/Buyer/${selectedBuyer.buyerCode}`, {
+      const res = await fetch(`http://51.75.119.133:5243/api/Buyer/${selectedBuyer.buyerCode}`, {
         method: 'PUT',
         headers: {
           accept: 'text/plain',
@@ -1255,7 +1324,7 @@ export default function AdminDashboard() {
     }
     setDeleteBuyerLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:8080/api/Buyer/${encodeURIComponent(selectedBuyer.buyerCode)}`, {
+      const res = await fetch(`http://51.75.119.133:5243/api/Buyer/${encodeURIComponent(selectedBuyer.buyerCode)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -1283,7 +1352,7 @@ export default function AdminDashboard() {
     }
     setCreateUserLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:8080/api/Auth/register-user', {
+      const res = await fetch('http://51.75.119.133:5243/api/Auth/register-user', {
         method: 'POST',
         headers: {
           accept: 'text/plain',
@@ -1325,7 +1394,7 @@ export default function AdminDashboard() {
     }
     setEditUserLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:8080/api/v1/User/${selectedUser.id}`, {
+      const res = await fetch(`http://51.75.119.133:5243/api/v1/User/${selectedUser.id}`, {
         method: 'PUT',
         headers: {
           accept: 'text/plain',
@@ -1361,7 +1430,7 @@ export default function AdminDashboard() {
     }
     setDeleteUserLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:8080/api/v1/User/${selectedUser.id}`, {
+      const res = await fetch(`http://51.75.119.133:5243/api/v1/User/${selectedUser.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -1392,8 +1461,8 @@ export default function AdminDashboard() {
         console.error('Failed to parse JSON response:', parseError);
         // If response is not JSON but status is OK, consider it a success
         if (res.ok) {
-          response = { 
-            success: true, 
+          response = {
+            success: true,
             message: 'User deleted successfully',
             data: null,
             errors: [],
@@ -1429,7 +1498,7 @@ export default function AdminDashboard() {
     try {
       console.log('Processing sale approval:', { saleId, isApproved, remarks });
 
-      const response = await fetch('http://51.75.119.133:8080/api/Approval/approve-sales', {
+      const response = await fetch('http://51.75.119.133:5243/api/Approval/approve-sales', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1466,8 +1535,8 @@ export default function AdminDashboard() {
       } catch (parseError) {
         console.error('Failed to parse JSON response:', parseError);
         // Create a minimal valid response object
-        result = { 
-          success: true, 
+        result = {
+          success: true,
           message: isApproved ? 'Sale approved successfully' : 'Sale rejected successfully',
           data: '',
           errors: [],
@@ -1530,7 +1599,7 @@ export default function AdminDashboard() {
 
       for (const saleId of selectedSales) {
         try {
-          const response = await fetch('http://51.75.119.133:8080/api/Approval/approve-sales', {
+          const response = await fetch('http://51.75.119.133:5243/api/Approval/approve-sales', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2003,7 +2072,7 @@ export default function AdminDashboard() {
                           <th className="px-4 py-3">AMOUNT</th>
                           <th className="px-4 py-3 hidden lg:table-cell">QTY</th>
                           <th className="px-4 py-3 hidden lg:table-cell">TIME</th>
-                          <th className="px-4 py-3">STATUS</th>
+
                           <th className="px-4 py-3 text-center">ACTIONS</th>
                         </tr>
                       </thead>
@@ -2127,7 +2196,7 @@ export default function AdminDashboard() {
                           <th className="px-4 py-3">AMOUNT</th>
                           <th className="px-4 py-3 hidden lg:table-cell">METHOD</th>
                           <th className="px-4 py-3 hidden lg:table-cell">DATE</th>
-                          <th className="px-4 py-3">STATUS</th>
+
                           <th className="px-4 py-3 text-center">ACTIONS</th>
                         </tr>
                       </thead>
@@ -2150,28 +2219,14 @@ export default function AdminDashboard() {
                             <td className="px-4 py-3 font-semibold text-emerald-300">{formatCurrency(payment.amount || 0)}</td>
                             <td className="px-4 py-3 hidden lg:table-cell">{payment.paymentMethod || 'N/A'}</td>
                             <td className="px-4 py-3 hidden lg:table-cell text-gray-400">{formatDate(payment.paymentDate)}</td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(payment.status)}`}>
-                                {payment.status === 0 && <Clock className="w-3 h-3" />}
-                                {payment.status === 1 && <CheckCircle className="w-3 h-3" />}
-                                {payment.status === 2 && <XCircle className="w-3 h-3" />}
-                                {payment.status === 3 && <AlertCircle className="w-3 h-3" />}
-                                {getPaymentStatusText(payment.status)}
-                              </span>
-                            </td>
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-center gap-2">
                                 <RippleButton
-                                  onClick={() => fetchPaymentDetailsBySalesId(payment.salesRequestId)}
-                                  disabled={processingPaymentId === payment.id}
+                                  onClick={() => handleViewPaymentSlip(payment.id)}
                                   className="btn-amber"
                                 >
-                                  {processingPaymentId === payment.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <DollarSign className="w-4 h-4" />
-                                  )}
-                                  Approve
+                                  <Eye className="w-4 h-4" />
+                                  View Slip
                                 </RippleButton>
                               </div>
                             </td>
@@ -2704,6 +2759,57 @@ export default function AdminDashboard() {
           </div>
         )}
       </Modal>
+
+      {/* Payment Slip Image Modal */}
+      {showPaymentSlipModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+          onClick={handleClosePaymentSlipModal}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="relative max-w-5xl max-h-[90vh] overflow-auto bg-slate-800 rounded-lg p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Payment Slip</h3>
+              <button
+                onClick={handleClosePaymentSlipModal}
+                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-full text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex justify-center">
+              {paymentSlipLoading ? (
+                <div className="flex items-center justify-center h-64 w-96">
+                  <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+                  <span className="ml-2 text-amber-400">Loading payment slip...</span>
+                </div>
+              ) : paymentSlipError ? (
+                <div className="text-center py-8">
+                  <XCircle className="w-12 h-12 text-red-400 mx-auto mb-2" />
+                  <p className="text-red-400">Failed to load payment slip</p>
+                  <p className="text-gray-400 text-sm mt-1">The payment slip image may not be available</p>
+                </div>
+              ) : (
+                <img
+                  src={paymentSlipUrl}
+                  alt="Payment Slip"
+                  className="max-w-full max-h-[75vh] rounded-lg shadow-2xl"
+                  onLoad={() => setPaymentSlipLoading(false)}
+                  onError={() => {
+                    setPaymentSlipLoading(false);
+                    setPaymentSlipError(true);
+                  }}
+                />
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   );
 }
