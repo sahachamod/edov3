@@ -203,7 +203,7 @@ export default function InvoicesDashboard() {
         return;
       }
 
-      const res = await fetch('http://51.75.119.133:5243/api/Sales', {
+      const res = await fetch('http://220.247.235.22:8085/api/Sales', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -242,7 +242,7 @@ export default function InvoicesDashboard() {
         return;
       }
 
-      const res = await fetch('http://51.75.119.133:5243/api/SalesRequest', {
+      const res = await fetch('http://220.247.235.22:8085/api/SalesRequest', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -366,7 +366,7 @@ export default function InvoicesDashboard() {
       if (!invoice) continue;
 
       try {
-        const res = await fetch(`http://51.75.119.133:5243/api/Approval/sales/${invoice.id}`, {
+        const res = await fetch(`http://220.247.235.22:8085/api/Approval/sales/${invoice.id}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -450,6 +450,31 @@ export default function InvoicesDashboard() {
     alert(resultMessage);
     setSelectedInvoices(new Set());
 
+    // Send email notification to Admin
+    if (successCount > 0) {
+      const successfulInvoices = results.filter(r => r.success).map(r => r.invoiceNo).join(', ');
+      try {
+        await fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: 'edo@easternbrokerslimited.com', // Admin email
+            subject: `New Invoice Approval Request - ${successCount} Invoices`,
+            html: `
+              <h1>Invoice Approval Request</h1>
+              <p>Buyer <strong>${results[0]?.invoiceNo}</strong> (Check Invoice Details for Buyer) has requested approval for the following invoices:</p>
+              <ul>
+                ${results.filter(r => r.success).map(r => `<li>${r.invoiceNo}</li>`).join('')}
+              </ul>
+              <p>Please login to the Admin Dashboard to review.</p>
+            `
+          })
+        });
+      } catch (err) {
+        console.error('Failed to send admin notification email', err);
+      }
+    }
+
     await fetchInvoices();
     await fetchSalesRequests();
   };
@@ -504,19 +529,22 @@ export default function InvoicesDashboard() {
     try {
       const formData = new FormData();
 
-      // Try different field names that the API might expect
+      // Use 'file' key as confirmed by API documentation
       formData.append('file', paymentSlipFile);
-      formData.append('slip', paymentSlipFile);
-      formData.append('paymentSlip', paymentSlipFile);
-      formData.append('attachment', paymentSlipFile);
 
-      console.log('Uploading file:', {
-        name: paymentSlipFile.name,
-        type: paymentSlipFile.type,
-        size: paymentSlipFile.size
-      });
+      const uploadUrl = `http://220.247.235.22:8085/api/Payment/${paymentId}/slip`;
 
-      const res = await fetch(`http://51.75.119.133:5243/api/Payment/${paymentId}/slip`, {
+      // Use stringify to ensure object details are visible in browser console
+      console.log('📤 Uploading payment slip:', JSON.stringify({
+        paymentId,
+        formDataKeys: ['file'],
+        fileName: paymentSlipFile.name,
+        fileType: paymentSlipFile.type,
+        fileSize: `${(paymentSlipFile.size / 1024).toFixed(2)} KB`,
+        url: uploadUrl
+      }, null, 2));
+
+      const res = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -525,46 +553,94 @@ export default function InvoicesDashboard() {
         body: formData
       });
 
-      console.log('Upload response status:', res.status);
+      // Log response immediately
+      console.log('📥 Upload response received:', JSON.stringify({
+        status: res.status,
+        statusText: res.statusText,
+        ok: res.ok,
+        type: res.type,
+        url: res.url,
+        headers: {
+          contentType: res.headers.get('content-type'),
+          contentLength: res.headers.get('content-length')
+        }
+      }, null, 2));
 
       if (res.ok) {
-        let responseData;
         const contentType = res.headers.get('content-type');
+        let responseData;
 
-        if (contentType && contentType.includes('application/json')) {
-          responseData = await res.json();
-        } else {
+        try {
           const text = await res.text();
-          responseData = { success: true, data: text };
+          console.log('📄 Success response body:', text || '(empty)');
+
+          if (text && text.trim()) {
+            responseData = JSON.parse(text);
+          } else {
+            responseData = { success: true, message: 'Upload successful', data: '' };
+          }
+        } catch (parseErr) {
+          console.warn('⚠️ Failed to parse response, but HTTP status is OK:', parseErr);
+          responseData = { success: true, message: 'Upload successful', data: '' };
         }
 
-        console.log('✅ Payment slip uploaded successfully:', responseData);
+        console.log('✅ Payment slip upload response:', JSON.stringify(responseData, null, 2));
 
-        if (responseData.success) {
-          return true;
-        } else {
-          console.error('❌ API returned success:false:', responseData);
+        if (responseData.success === false) {
+          const errorMsg = responseData.message || responseData.details || 'Upload failed';
+          alert(`❌ Upload failed: ${errorMsg}`);
           return false;
         }
+
+        return true;
       } else {
-        let errorMessage = `HTTP ${res.status}`;
+        // Handle error responses
+        const contentType = res.headers.get('content-type');
+        let responseText = '';
+
         try {
-          const errorData = await res.json();
-          errorMessage = errorData.message || errorData.details || errorMessage;
-          console.error('❌ Upload error response:', errorData);
-        } catch {
-          try {
-            const errText = await res.text();
-            errorMessage = errText || errorMessage;
-          } catch {
-            // Ignore, use default error message
-          }
+          responseText = await res.text();
+          console.log('📄 Raw error response body:', responseText || '(empty response body)');
+        } catch (readErr) {
+          console.error('❌ Failed to read response body:', readErr);
         }
-        console.error(`❌ Failed to upload payment slip:`, errorMessage);
+
+        let errorMessage = `HTTP ${res.status} - ${res.statusText}`;
+        let errorDetails = null;
+
+        if (contentType && contentType.includes('application/json') && responseText.trim()) {
+          try {
+            errorDetails = JSON.parse(responseText);
+            errorMessage = errorDetails.message || errorDetails.details || errorDetails.title || errorMessage;
+          } catch (parseErr) {
+            console.error('❌ Failed to parse error response as JSON:', parseErr);
+          }
+        } else if (responseText.trim()) {
+          errorMessage = responseText;
+        }
+
+        // Log complete details including the parsed error
+        console.error('❌ Upload failed - Complete details:', JSON.stringify({
+          status: res.status,
+          statusText: res.statusText,
+          contentType,
+          bodyPreview: responseText.substring(0, 500),
+          url: uploadUrl,
+          paymentId: paymentId,
+          parsedError: errorDetails
+        }, null, 2));
+
+        alert(`❌ Failed to upload payment slip:\n${errorMessage}\n\nPayment ID: ${paymentId}`);
         return false;
       }
     } catch (err: any) {
-      console.error('❌ Network error uploading payment slip:', err);
+      console.error('❌ Network/Exception error:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+        error: err
+      });
+      alert(`❌ Network error uploading payment slip:\n${err.message || 'Unknown error'}`);
       return false;
     } finally {
       setUploadingSlip(false);
@@ -633,9 +709,9 @@ export default function InvoicesDashboard() {
       };
 
       try {
-        console.log('Creating payment for invoice:', invoiceId, paymentData);
+        console.log('💳 Creating payment for invoice:', invoiceId, paymentData);
 
-        const res = await fetch('http://51.75.119.133:5243/api/Payment', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -646,24 +722,57 @@ export default function InvoicesDashboard() {
         });
 
         if (res.ok) {
-          const responseData = await res.json();
-          console.log('Payment creation response:', responseData);
+          const contentType = res.headers.get('content-type');
+          let responseData;
 
-          const paymentId = responseData.id || responseData.data?.id || responseData.paymentId;
+          if (contentType && contentType.includes('application/json')) {
+            responseData = await res.json();
+          } else {
+            const text = await res.text();
+            console.warn('⚠️ Payment API returned non-JSON response:', text);
+            // Try to parse as JSON anyway
+            try {
+              responseData = JSON.parse(text);
+            } catch {
+              responseData = { data: text };
+            }
+          }
+
+          console.log('✅ Payment creation response:', responseData);
+
+          // Try multiple ways to extract the payment ID
+          let paymentId = null;
+          if (typeof responseData === 'number') {
+            paymentId = responseData;
+          } else if (typeof responseData === 'object') {
+            paymentId = responseData.id ||
+              responseData.paymentId ||
+              responseData.data?.id ||
+              responseData.data?.paymentId ||
+              (typeof responseData.data === 'number' ? responseData.data : null);
+          }
+
+          console.log('🔑 Extracted payment ID:', paymentId);
+
+          if (!paymentId) {
+            console.error('⚠️ Could not extract payment ID from response:', responseData);
+          }
+
           const salesRequestId = responseData.salesRequestId || invoiceId;
 
           results.push({
             invoiceId,
-            paymentId,
+            paymentId: paymentId || undefined,
             salesRequestId,
             success: true,
             slipUploaded: false // Will update after upload
           });
         } else {
-          let errorMessage = `HTTP ${res.status}`;
+          let errorMessage = `HTTP ${res.status} - ${res.statusText}`;
           try {
             const errorData = await res.json();
             errorMessage = errorData.message || errorData.details || errorMessage;
+            console.error('❌ Payment creation error:', errorData);
           } catch {
             const errText = await res.text();
             errorMessage = errText || errorMessage;
@@ -685,15 +794,17 @@ export default function InvoicesDashboard() {
     }
 
     // Wait for payments to be processed
+    console.log('⏳ Waiting for payments to be processed...');
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Refresh sales requests to get the latest payment IDs
     await fetchSalesRequests();
 
     // Now upload slips for successful payments
+    console.log('📎 Starting payment slip uploads...');
     for (const result of results) {
       if (result.success && result.paymentId) {
-        console.log(`Attempting to upload slip for payment ID: ${result.paymentId}`);
+        console.log(`📤 Attempting to upload slip for payment ID: ${result.paymentId}`);
         const slipUploaded = await uploadPaymentSlip(result.paymentId);
         result.slipUploaded = slipUploaded;
 
@@ -702,6 +813,8 @@ export default function InvoicesDashboard() {
         } else {
           console.log(`❌ Slip upload failed for payment ${result.paymentId}`);
         }
+      } else if (result.success && !result.paymentId) {
+        console.warn(`⚠️ Payment created for invoice ${result.invoiceId} but no payment ID available - cannot upload slip`);
       }
     }
 

@@ -7,43 +7,378 @@ import { useRouter } from 'next/navigation';
 
 // ───────────── PDF Styles ─────────────
 const pdfStyles = StyleSheet.create({
-  page: { padding: 30, fontSize: 11, fontFamily: 'Helvetica' },
-  title: { fontSize: 18, marginBottom: 12, fontWeight: 'bold' as const, textAlign: 'center' as const },
-  section: { marginBottom: 16 },
-  row: { flexDirection: 'row' as const, marginBottom: 6, alignItems: 'flex-start' as const },
-  label: { fontWeight: 'bold' as const, width: 140, color: '#1f2937' },
-  value: { flex: 1, color: '#374151' },
-  footer: { marginTop: 30, fontSize: 9, color: '#6b7280', textAlign: 'center' as const },
+  page: {
+    padding: 40,
+    fontSize: 10,
+    fontFamily: 'Helvetica',
+    position: 'relative'
+  },
+
+  // Main Layout Containers
+  contentContainer: {
+    marginLeft: 100,
+  },
+
+  // Vertical Line
+  verticalLine: {
+    position: 'absolute',
+    left: 90,
+    top: 20,
+    bottom: 20,
+    width: 1,
+    backgroundColor: '#000'
+  },
+
+  // Sidebar
+  sidebarContainer: {
+    position: 'absolute',
+    left: 0,
+    top: 50,
+    width: 90,
+    height: '100%',
+  },
+  sidebarItem: {
+    position: 'absolute',
+    transform: 'rotate(-90deg)',
+    width: 100, // Fixed width for rotation center
+    textAlign: 'center',
+    fontSize: 9,
+  },
+
+  // Header Section
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    alignItems: 'flex-start'
+  },
+  logoSection: {
+    flexDirection: 'row',
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginRight: 15
+  },
+  companyDetailBox: {
+    fontSize: 9,
+    lineHeight: 1.4
+  },
+  mainTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    textAlign: 'right'
+  },
+  subTitle: {
+    fontSize: 9,
+    textAlign: 'right',
+  },
+
+  // Info Grid - Single Line
+  infoRowMain: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    marginTop: 15,
+    paddingRight: 20
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  infoLabel: {
+    fontWeight: 'bold',
+    fontSize: 9,
+    marginRight: 5
+  },
+  infoValue: {
+    fontSize: 9,
+    fontWeight: 'bold'
+  },
+
+  // Delivery To Section
+  deliverySection: {
+    marginTop: 5,
+    marginBottom: 10,
+  },
+  storeKeeperRow: {
+    flexDirection: 'row',
+    marginBottom: 5,
+    alignItems: 'flex-start'
+  },
+  storeKeeperLabel: {
+    fontWeight: 'bold',
+    fontSize: 9,
+    width: 90
+  },
+  storeKeeperValue: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    flex: 1
+  },
+  lotMarkRow: {
+    flexDirection: 'row',
+    marginTop: 2
+  },
+  lotItem: {
+    flexDirection: 'row',
+    marginRight: 40
+  },
+
+  // Table
+  table: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#000',
+    marginTop: 10,
+    marginBottom: 10
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    backgroundColor: '#fff',
+    height: 25,
+    alignItems: 'center',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 9
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    minHeight: 35,
+    alignItems: 'center',
+    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: 'bold'
+  },
+  col1: { width: '15%', borderRightWidth: 1, borderRightColor: '#000', height: '100%', justifyContent: 'center' },
+  col2: { width: '10%', borderRightWidth: 1, borderRightColor: '#000', height: '100%', justifyContent: 'center' },
+  col3: { width: '15%', borderRightWidth: 1, borderRightColor: '#000', height: '100%', justifyContent: 'center' },
+  col4: { width: '20%', borderRightWidth: 1, borderRightColor: '#000', height: '100%', justifyContent: 'center' },
+  col5: { width: '20%', borderRightWidth: 1, borderRightColor: '#000', height: '100%', justifyContent: 'center' },
+  col6: { width: '20%', height: '100%', justifyContent: 'center' }, // Total Net Weight
+
+  // Footer Section
+  footerSection: {
+    marginTop: 20
+  },
+  soldByText: {
+    fontSize: 10,
+    marginBottom: 5
+  },
+  sellerName: {
+    fontSize: 11,
+    fontWeight: 'heavy', // 'bold' sometimes has issues in some pdf renderers, but standard fonts support bold
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 10
+  },
+  storageText: {
+    fontSize: 9,
+    marginBottom: 20
+  },
+  deliveryLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 40
+  },
+  dots: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    borderBottomStyle: 'dotted', // React-pdf dotted support can be tricky, solid is safer
+    flex: 1,
+    marginLeft: 10
+  },
+
+  signatureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 30,
+    paddingRight: 20
+  },
+  signatureBox: {
+    borderTopWidth: 1,
+    borderTopColor: '#000',
+    width: 200,
+    paddingTop: 5,
+    textAlign: 'center',
+    fontSize: 9
+  },
+  brokerSignature: {
+    textAlign: 'right',
+    width: 200
+  },
+
+  disclaimer: {
+    marginTop: 30,
+    fontSize: 8,
+    textAlign: 'justify',
+    lineHeight: 1.3,
+    borderTopWidth: 1,
+    borderTopColor: '#000',
+    borderStyle: 'dashed',
+    paddingTop: 5
+  },
 });
 
 // ───────────── Sale PDF Document ─────────────
-const SalePdf = ({ sale }: { sale: Sale }) => (
-  <Document>
-    <Page size="A4" style={pdfStyles.page}>
-      <Text style={pdfStyles.title}>Sales Receipt</Text>
-      <Text style={{ textAlign: 'center' as const, marginBottom: 20, fontSize: 12 }}>
-        Sale ID: {sale.id}
-      </Text>
+const SalePdf = ({ sale }: { sale: Sale }) => {
+  // Current date for the "Date" field
+  const currentDate = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  });
 
-      <View style={pdfStyles.section}>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Buyer:</Text><Text style={pdfStyles.value}>{sale.buyerName}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Buyer Code:</Text><Text style={pdfStyles.value}>{sale.buyerCode}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Sale Date:</Text><Text style={pdfStyles.value}>{new Date(sale.saleDate).toLocaleString('en-IN')}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Category:</Text><Text style={pdfStyles.value}>{sale.categoryDescription}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Grade:</Text><Text style={pdfStyles.value}>{sale.gradeDescription}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Lot No:</Text><Text style={pdfStyles.value}>{sale.lotNo}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Quantity:</Text><Text style={pdfStyles.value}>{sale.quantity}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Net Weight:</Text><Text style={pdfStyles.value}>{sale.netWeight} kg</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Price:</Text><Text style={pdfStyles.value}>₹{sale.price.toLocaleString('en-IN')}</Text></View>
-        <View style={pdfStyles.row}><Text style={pdfStyles.label}>Status:</Text><Text style={pdfStyles.value}>{sale.approvalStatusString || (sale.delivered ? 'Delivered' : 'Pending')}</Text></View>
-      </View>
+  // Format Sale Date for storage calculation
+  const saleDateObj = new Date(sale.saleDate);
+  const freeStorageDate = new Date(saleDateObj);
+  freeStorageDate.setDate(saleDateObj.getDate() + 14);
+  const formattedStorageDate = freeStorageDate.toLocaleDateString('en-GB');
 
-      <Text style={pdfStyles.footer}>
-        Generated on {new Date().toLocaleString('en-IN')} | Sale ID: {sale.id}
-      </Text>
-    </Page>
-  </Document>
-);
+  // Generate Invoice No based on ID if not available
+  const invoiceNo = `0${sale.id}R`;
+  // User requested "Sales no is invoice no", so we use invoiceNo for Sale No field too
+  const saleNo = invoiceNo;
+
+  return (
+    <Document>
+      <Page size="A4" orientation="landscape" style={pdfStyles.page}>
+
+        {/* Vertical Separator Line */}
+        <View style={pdfStyles.verticalLine}></View>
+
+        {/* Sidebar Items - Adjusted positions to match image */}
+        <View style={pdfStyles.sidebarContainer}>
+          {/* Top Group */}
+          <Text style={[pdfStyles.sidebarItem, { top: 60, left: -10 }]}>{currentDate}</Text>
+          <Text style={[pdfStyles.sidebarItem, { top: 60, left: 15 }]}>{sale.categoryDescription || 'KINELLAN'}</Text>
+
+          <Text style={[pdfStyles.sidebarItem, { top: 120, left: -10, fontSize: 8 }]}>Date</Text>
+          <Text style={[pdfStyles.sidebarItem, { top: 120, left: 15, fontSize: 8 }]}>Mark</Text>
+          <Text style={[pdfStyles.sidebarItem, { top: 120, left: 40, fontSize: 8 }]}>Stores</Text>
+
+          {/* Bottom Group */}
+          <Text style={[pdfStyles.sidebarItem, { top: 250, left: 15 }]}>{invoiceNo}</Text>
+          <Text style={[pdfStyles.sidebarItem, { top: 300, left: -25 }]}>{saleNo}</Text>
+
+          <Text style={[pdfStyles.sidebarItem, { top: 350, left: -25, fontSize: 8 }]}>Sale No.</Text>
+          <Text style={[pdfStyles.sidebarItem, { top: 350, left: 0, fontSize: 8 }]}>Invoice No.</Text>
+          <Text style={[pdfStyles.sidebarItem, { top: 350, left: 25, fontSize: 8 }]}>Order No.</Text>
+          <Text style={[pdfStyles.sidebarItem, { top: 350, left: 50, fontSize: 8 }]}>Lot No.</Text>
+        </View>
+
+        <View style={pdfStyles.contentContainer}>
+          {/* Header */}
+          <View style={pdfStyles.headerContainer}>
+            <View style={pdfStyles.logoSection}>
+              <Text style={pdfStyles.logoText}>EB</Text>
+              <View style={pdfStyles.companyDetailBox}>
+                <Text>891 2nd Division,</Text>
+                <Text>Maradana, Punchi Borella</Text>
+                <Text>Colombo 10.</Text>
+              </View>
+            </View>
+
+            <View>
+              <Text style={pdfStyles.mainTitle}>EASTERN BROKERS LTD.</Text>
+              <Text style={pdfStyles.subTitle}>TEA DELIVERY ORDER - Main Buyer</Text>
+            </View>
+          </View>
+
+          {/* Info Rows - Single Line */}
+          <View style={pdfStyles.infoRowMain}>
+            <View style={pdfStyles.infoItem}>
+              <Text style={pdfStyles.infoLabel}>Sale No. :</Text>
+              <Text style={pdfStyles.infoValue}>{saleNo}</Text>
+            </View>
+            <View style={pdfStyles.infoItem}>
+              <Text style={pdfStyles.infoLabel}>Order No. :</Text>
+              <Text style={pdfStyles.infoValue}>{sale.id}</Text>
+            </View>
+            <View style={pdfStyles.infoItem}>
+              <Text style={pdfStyles.infoLabel}>Date. :</Text>
+              <Text style={pdfStyles.infoValue}>{currentDate}</Text>
+            </View>
+          </View>
+
+          <View style={pdfStyles.deliverySection}>
+            <View style={pdfStyles.storeKeeperRow}>
+              <Text style={pdfStyles.storeKeeperLabel}>To the Storekeeper :</Text>
+              <Text style={pdfStyles.storeKeeperValue}>{sale.buyerName?.toUpperCase()}</Text>
+            </View>
+            <View style={pdfStyles.lotMarkRow}>
+              <View style={pdfStyles.lotItem}>
+                <Text style={pdfStyles.storeKeeperLabel}>Lot No. :</Text>
+                <Text style={pdfStyles.infoValue}>{sale.lotNo || '450'}</Text>
+              </View>
+              <View style={pdfStyles.lotItem}>
+                <Text style={pdfStyles.storeKeeperLabel}>Mark :</Text>
+                <Text style={pdfStyles.infoValue}>{sale.categoryDescription || 'KINELLAN'}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Invoice Table */}
+          <View style={pdfStyles.table}>
+            <View style={pdfStyles.tableHeader}>
+              <View style={pdfStyles.col1}><Text>Inv. No.</Text></View>
+              <View style={pdfStyles.col2}><Text>Pkgs.</Text></View>
+              <View style={pdfStyles.col3}><Text>Type</Text></View>
+              <View style={pdfStyles.col4}><Text>NETT</Text></View>
+              <View style={pdfStyles.col5}><Text>GRADE</Text></View>
+              <View style={pdfStyles.col6}><Text>Total Net Weight</Text></View>
+            </View>
+
+            <View style={pdfStyles.tableRow}>
+              <View style={pdfStyles.col1}><Text>{invoiceNo}</Text></View>
+              <View style={pdfStyles.col2}><Text>{sale.quantity}</Text></View>
+              <View style={pdfStyles.col3}><Text>Bags</Text></View> {/* Hardcoded as Type isn't in Sale */}
+              <View style={pdfStyles.col4}><Text>{(sale.netWeight / (sale.quantity || 1)).toFixed(1)}</Text></View>
+              <View style={pdfStyles.col5}><Text>{sale.gradeDescription || 'DUST'}</Text></View>
+              <View style={pdfStyles.col6}><Text>{sale.netWeight.toFixed(1)}</Text></View>
+            </View>
+          </View>
+
+          {/* Footer Area */}
+          <View style={pdfStyles.footerSection}>
+            <Text style={pdfStyles.soldByText}>The above mentioned lot has been purchased by messrs.</Text>
+            <Text style={pdfStyles.sellerName}>CEYEM COMMODITIES PVT LTD</Text>
+            <Text style={pdfStyles.storageText}>Last date of free storage :   {formattedStorageDate}</Text>
+
+            <View style={pdfStyles.deliveryLine}>
+              <Text>Please deliver to bearer. N.I.C. No.</Text>
+              <View style={pdfStyles.dots}></View>
+            </View>
+
+            <View style={pdfStyles.signatureRow}>
+              <Text style={{ width: 250 }}></Text>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ marginBottom: 30, fontSize: 10 }}>EASTERN BROKERS LTD.</Text>
+                <Text style={pdfStyles.signatureBox}>FOR DIRECTOR</Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 }}>
+              <View style={{ width: 250, borderTopWidth: 1, borderTopColor: '#000', paddingTop: 5 }}>
+                <Text style={{ textAlign: 'center', fontSize: 9 }}>Buyer's authorised signatory</Text>
+              </View>
+            </View>
+
+            <Text style={pdfStyles.disclaimer}>
+              The tea lots purchased by you at the auction are stored in our warehouse subject to the risks of the buyer on the same as provided in rule no 32 (I) of 'Bye laws and conditions for the sale of tea by public auction and by treaty' of the Ceylon Chamber of Commerce.
+            </Text>
+          </View>
+
+        </View> {/* End contentContainer */}
+
+      </Page>
+    </Document>
+  );
+};
 
 // ───────────── Sale Type ─────────────
 interface Sale {
@@ -90,7 +425,7 @@ export default function BuyerDashboard() {
         const token = localStorage.getItem('authToken');
         if (!token) return router.push('/login');
 
-        const res = await fetch('http://51.75.119.133:5243/api/Sales/approved', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Sales/approved`, {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
 

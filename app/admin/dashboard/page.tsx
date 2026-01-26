@@ -27,7 +27,8 @@ import {
   HelpCircle,
   Calendar,
   DollarSign,
-  Eye
+  Eye,
+  Download
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -840,7 +841,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setBuyersLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:5243/api/Buyer', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Buyer`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const txt = await res.text();
@@ -863,7 +864,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setUsersLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:5243/api/v1/User', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/User`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Accept': 'application/json'
@@ -898,7 +899,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setSalesLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:5243/api/Sales', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Sales`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const txt = await res.text();
@@ -943,7 +944,7 @@ export default function AdminDashboard() {
     setPendingSalesLoading(true);
     try {
       console.log('Fetching pending sales with token:', authToken.substring(0, 10) + '...');
-      const res = await fetch('http://51.75.119.133:5243/api/Sales/pending', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Sales/pending`, {
         headers: {
           'Authorization': `Bearer ${authToken.trim()}`,
           'Accept': 'application/json',
@@ -993,7 +994,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setPendingPaymentsLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:5243/api/Payment/admin/all?status=0', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/admin/all?status=0`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Accept': 'application/json'
@@ -1047,7 +1048,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     setProcessingPaymentId(0); // Using 0 as a general loading indicator
     try {
-      const res = await fetch(`http://51.75.119.133:5243/api/Payment/sales-txn/${salesId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/sales-txn/${salesId}`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Accept': 'application/json'
@@ -1096,7 +1097,7 @@ export default function AdminDashboard() {
     if (!selectedPendingPayment || !authToken) return;
     setProcessingPaymentId(selectedPendingPayment.id);
     try {
-      const response = await fetch('http://51.75.119.133:5243/api/Payment/approve', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1172,23 +1173,52 @@ export default function AdminDashboard() {
 
     setPaymentSlipLoading(true);
     setPaymentSlipError(false);
+    setShowPaymentSlipModal(true); // Show modal immediately
 
     try {
       // Create a blob URL with authentication
-      const slipUrl = `http://51.75.119.133:5243/api/Payment/${paymentId}/slip`;
+      const slipUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/Payment/${paymentId}/slip`;
+
+      console.log('📥 Fetching payment slip:', slipUrl);
 
       // Fetch the image with authentication
       const response = await fetch(slipUrl, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
       });
 
+      console.log('📥 Payment slip response:', JSON.stringify({
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        contentType: response.headers.get('content-type'),
+        contentLength: response.headers.get('content-length')
+      }, null, 2));
+
       if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+        } catch (e) {
+          errorText = 'Failed to read error body';
+        }
+
+        console.error('❌ Failed to fetch payment slip:', JSON.stringify({
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+          url: slipUrl
+        }, null, 2));
         throw new Error(`Failed to fetch payment slip: ${response.status} ${response.statusText}`);
       }
 
       const blob = await response.blob();
+      console.log('📄 Blob received:', {
+        size: blob.size,
+        type: blob.type
+      });
 
       if (blob.size === 0) {
         throw new Error('Payment slip image is empty');
@@ -1196,14 +1226,16 @@ export default function AdminDashboard() {
 
       // Create a blob URL for the image
       const blobUrl = URL.createObjectURL(blob);
-      setPaymentSlipUrl(blobUrl);
-      setShowPaymentSlipModal(true);
+      console.log('✅ Payment slip loaded successfully:', blobUrl);
 
-    } catch (error) {
-      console.error('Error loading payment slip:', error);
+      setPaymentSlipUrl(blobUrl);
+      setPaymentSlipLoading(false); // ✅ FIX: Set loading to false on success!
+
+    } catch (error: any) {
+      console.error('❌ Error loading payment slip:', error);
       setPaymentSlipLoading(false);
       setPaymentSlipError(true);
-      showToast('Failed to load payment slip. Please try again.', 'error');
+      showToast(error.message || 'Failed to load payment slip. Please try again.', 'error');
     }
   };
 
@@ -1256,7 +1288,7 @@ export default function AdminDashboard() {
     }
     setCreateBuyerLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:5243/api/Buyer', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Buyer`, {
         method: 'POST',
         headers: {
           accept: 'text/plain',
@@ -1289,7 +1321,7 @@ export default function AdminDashboard() {
     if (!selectedBuyer) return;
     setEditBuyerLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:5243/api/Buyer/${selectedBuyer.buyerCode}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Buyer/${selectedBuyer.buyerCode}`, {
         method: 'PUT',
         headers: {
           accept: 'text/plain',
@@ -1324,7 +1356,7 @@ export default function AdminDashboard() {
     }
     setDeleteBuyerLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:5243/api/Buyer/${encodeURIComponent(selectedBuyer.buyerCode)}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Buyer/${encodeURIComponent(selectedBuyer.buyerCode)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -1352,7 +1384,7 @@ export default function AdminDashboard() {
     }
     setCreateUserLoading(true);
     try {
-      const res = await fetch('http://51.75.119.133:5243/api/Auth/register-user', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Auth/register-user`, {
         method: 'POST',
         headers: {
           accept: 'text/plain',
@@ -1394,7 +1426,7 @@ export default function AdminDashboard() {
     }
     setEditUserLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:5243/api/v1/User/${selectedUser.id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/User/${selectedUser.id}`, {
         method: 'PUT',
         headers: {
           accept: 'text/plain',
@@ -1430,7 +1462,7 @@ export default function AdminDashboard() {
     }
     setDeleteUserLoading(true);
     try {
-      const res = await fetch(`http://51.75.119.133:5243/api/v1/User/${selectedUser.id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/User/${selectedUser.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -1498,7 +1530,7 @@ export default function AdminDashboard() {
     try {
       console.log('Processing sale approval:', { saleId, isApproved, remarks });
 
-      const response = await fetch('http://51.75.119.133:5243/api/Approval/approve-sales', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Approval/approve-sales`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1559,6 +1591,9 @@ export default function AdminDashboard() {
         'success'
       );
 
+      // Trigger email notification
+      notifyBuyer(saleId, isApproved);
+
       if (isSaleDetailOpen && selectedSale?.id === saleId) {
         setIsSaleDetailOpen(false);
       }
@@ -1569,6 +1604,50 @@ export default function AdminDashboard() {
     } finally {
       setProcessingSaleId(null);
       setApprovalRemarks('');
+
+      // Send email notification to Buyer
+      // 1. Find the sale to get buyerCode (if available in current scope or fetch it)
+      // Since we updated the list, we might not have the stale sale object easily, 
+      // but we can pass buyerCode/Email if we have it, or look it up from 'pendingSales' before we filtered it out?
+      // Better: find the sale in pendingSales BEFORE updating state (we don't have access to it here easily without passing it).
+      // Let's rely on looking up the user from the 'users' list using the sale's buyerCode.
+
+      // We need the sale details. detailed implementation below:
+    }
+  };
+
+  // Wrapper to handle notification logic cleanly
+  const notifyBuyer = async (saleId: number, isApproved: boolean) => {
+    try {
+      const sale = pendingSales.find(s => s.id === saleId) || salesData.datasets?.[0]?.data?.find((s: any) => s.id === saleId);
+      // Note: salesData structure might not match. pendingSales is reliable for pending approvals.
+
+      if (!sale) return;
+
+      const buyerUser = users.find(u => u.buyerCode === sale.buyerCode);
+      if (!buyerUser || !buyerUser.email) {
+        console.warn(`No user email found for buyer code: ${sale.buyerCode}`);
+        return;
+      }
+
+      await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: buyerUser.email,
+          subject: `Invoice #${sale.invoiceNo} ${isApproved ? 'Approved' : 'Rejected'}`,
+          html: `
+                    <h1>Invoice Status Update</h1>
+                    <p>Dear ${sale.buyerName},</p>
+                    <p>Your invoice <strong>${sale.invoiceNo}</strong> (Sale ID: ${sale.id}) has been <strong>${isApproved ? 'APPROVED' : 'REJECTED'}</strong>.</p>
+                    ${!isApproved ? `<p><strong>Reason:</strong> ${approvalRemarks || 'Contact admin for details'}</p>` : ''}
+                    <p>Please login to your dashboard to view details.</p>
+                `
+        })
+      });
+      console.log(`Email sent to ${buyerUser.email}`);
+    } catch (e) {
+      console.error('Failed to send buyer notification', e);
     }
   };
 
@@ -1599,7 +1678,7 @@ export default function AdminDashboard() {
 
       for (const saleId of selectedSales) {
         try {
-          const response = await fetch('http://51.75.119.133:5243/api/Approval/approve-sales', {
+          const response = await fetch('http://220.247.235.22:8085/api/Approval/approve-sales', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2775,18 +2854,30 @@ export default function AdminDashboard() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Payment Slip</h3>
-              <button
-                onClick={handleClosePaymentSlipModal}
-                className="p-2 bg-slate-700 hover:bg-slate-600 rounded-full text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {paymentSlipUrl && !paymentSlipLoading && !paymentSlipError && (
+                  <a
+                    href={paymentSlipUrl}
+                    download="payment-slip.jpg"
+                    className="p-2 bg-emerald-600 hover:bg-emerald-700 rounded-full text-white transition-colors"
+                    title="Download payment slip"
+                  >
+                    <Download className="w-5 h-5" />
+                  </a>
+                )}
+                <button
+                  onClick={handleClosePaymentSlipModal}
+                  className="p-2 bg-slate-700 hover:bg-slate-600 rounded-full text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             <div className="flex justify-center">
               {paymentSlipLoading ? (
-                <div className="flex items-center justify-center h-64 w-96">
-                  <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
-                  <span className="ml-2 text-amber-400">Loading payment slip...</span>
+                <div className="flex flex-col items-center justify-center h-64 w-96">
+                  <Loader2 className="w-8 h-8 animate-spin text-amber-400 mb-2" />
+                  <span className="text-amber-400">Loading payment slip...</span>
                 </div>
               ) : paymentSlipError ? (
                 <div className="text-center py-8">
@@ -2794,17 +2885,21 @@ export default function AdminDashboard() {
                   <p className="text-red-400">Failed to load payment slip</p>
                   <p className="text-gray-400 text-sm mt-1">The payment slip image may not be available</p>
                 </div>
-              ) : (
+              ) : paymentSlipUrl ? (
                 <img
                   src={paymentSlipUrl}
                   alt="Payment Slip"
                   className="max-w-full max-h-[75vh] rounded-lg shadow-2xl"
-                  onLoad={() => setPaymentSlipLoading(false)}
                   onError={() => {
-                    setPaymentSlipLoading(false);
+                    console.error('❌ Image failed to load');
                     setPaymentSlipError(true);
                   }}
                 />
+              ) : (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-2" />
+                  <p className="text-yellow-400">No payment slip available</p>
+                </div>
               )}
             </div>
           </motion.div>

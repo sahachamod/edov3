@@ -27,28 +27,42 @@ export default function LoginPage() {
     try {
       // ---- 1. Try BUYER login first ----
       let userType: 'buyer' | 'admin' = 'buyer';
-      let response = await fetch('http://51.75.119.133:5243/api/Auth/buyer-login', {
+      let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Auth/buyer-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      let data: LoginResponse = await response.json();
+      let text = await response.text();
+      let data: LoginResponse = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.warn('Buyer login response parsing failed:', text);
+      }
+
       console.log('Buyer login attempt →', { ok: response.ok, data });
 
       // ---- 2. If buyer fails → try ADMIN login ----
       if (!response.ok) {
         userType = 'admin';
-        response = await fetch('http://51.75.119.133:5243/api/Auth/login', {
+        response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
         });
-        data = await response.json();
+
+        text = await response.text();
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (e) {
+          console.warn('Admin login response parsing failed:', text);
+        }
         console.log('Admin login attempt →', { ok: response.ok, data });
       }
 
       // ---- 3. Final success check (after both attempts) ----
+      // We check if response.ok is true OR if we have a valid token (sometimes APIs return 200 ok but empty body if auth fails logic elsewhere, but here rely on standard token presence)
       if (response.ok && data.token) {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('userType', userType);
